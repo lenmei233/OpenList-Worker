@@ -1,62 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Card,
   Typography,
   List,
-  Divider,
-  Spin,
-  Alert,
   Row,
   Col,
   Space,
 } from 'antd';
 import {
   InfoCircleOutlined,
-  CodeOutlined,
   ThunderboltOutlined,
   TeamOutlined,
   DatabaseOutlined,
 } from '@ant-design/icons';
-import { systemApi } from '../../posts/api';
-
-interface SystemInfo {
-  version?: string;
-  build?: string;
-  nodeVersion?: string;
-  platform?: string;
-  uptime?: string;
-  memory?: string;
-  cpuUsage?: string;
-}
 
 const AboutPlatform: React.FC = () => {
-  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // 获取系统信息
-  useEffect(() => {
-    const fetchSystemInfo = async () => {
-      try {
-        setLoading(true);
-        const response = await systemApi.getSystemInfo();
-        
-        if (response.flag && response.data) {
-          setSystemInfo(response.data);
-        } else {
-          setError(response.text || '获取系统信息失败');
-        }
-      } catch (err: any) {
-        console.error('获取系统信息失败:', err);
-        setError(err.message || '获取系统信息失败');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSystemInfo();
-  }, []);
-
   const features = [
     '多驱动器支持 (OneDrive, Google Drive, 百度网盘等)',
     '文件加密和分享功能',
@@ -69,73 +27,31 @@ const AboutPlatform: React.FC = () => {
   ];
 
   const technologies = [
-    { name: '前端', tech: 'React 18 + TypeScript + Ant Design' },
-    { name: '后端', tech: 'Node.js + Express + TypeScript' },
-    { name: '数据库', tech: 'SQLite' },
-    { name: '构建工具', tech: 'Vite' },
-    { name: '部署', tech: 'Docker + Nginx' },
+    { name: '前端', tech: 'React + TypeScript + Ant Design' },
+    { name: '后端', tech: 'Cloudflare Workers + Hono + TypeScript' },
+    { name: '数据库', tech: 'Cloudflare D1 / SQLite / 远程数据库' },
+    { name: '构建工具', tech: 'Vite / Wrangler' },
+    { name: '部署', tech: 'Cloudflare Workers' },
   ];
-
-  // 系统信息列表数据
-  const systemInfoItems = systemInfo
-    ? [
-        { label: '版本号', value: systemInfo.version || '未知' },
-        { label: '构建时间', value: systemInfo.build || '未知' },
-        { label: 'Node.js版本', value: systemInfo.nodeVersion || '未知' },
-        { label: '运行平台', value: systemInfo.platform || '未知' },
-        { label: '运行时间', value: systemInfo.uptime || '未知' },
-        { label: '内存使用', value: systemInfo.memory || '未知' },
-        ...(systemInfo.cpuUsage ? [{ label: 'CPU信息', value: systemInfo.cpuUsage }] : []),
-      ]
-    : [];
 
   return (
     <div style={{ width: '100%', height: '100%', padding: 24 }}>
       <Row gutter={[24, 24]}>
-        {/* 系统信息 */}
+        {/* 平台信息 */}
         <Col xs={24} md={12}>
           <Card
             title={
               <Space>
                 <InfoCircleOutlined style={{ color: 'var(--ant-color-primary)' }} />
-                <span>系统信息</span>
+                <span>平台信息</span>
               </Space>
             }
             style={{ borderRadius: 12 }}
           >
-            {loading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
-                <Spin />
-              </div>
-            ) : error ? (
-              <Alert message={error} type="error" showIcon />
-            ) : systemInfo ? (
-              <List
-                size="small"
-                dataSource={systemInfoItems}
-                renderItem={(item) => (
-                  <List.Item>
-                    <List.Item.Meta title={item.label} description={item.value} />
-                  </List.Item>
-                )}
-              />
-            ) : (
-              <Alert message="暂无系统信息" type="info" showIcon />
-            )}
-          </Card>
-        </Col>
-
-        {/* 技术栈 */}
-        <Col xs={24} md={12}>
-          <Card
-            title={
-              <Space>
-                <CodeOutlined style={{ color: 'var(--ant-color-primary)' }} />
-                <span>技术栈</span>
-              </Space>
-            }
-            style={{ borderRadius: 12 }}
-          >
+            <Typography.Paragraph>
+              OpenList 是一个开源的云存储管理平台，基于 Cloudflare Workers 构建，
+              支持多种云存储服务的统一管理。
+            </Typography.Paragraph>
             <List
               size="small"
               dataSource={technologies}
