@@ -130,9 +130,13 @@ const DynamicFileManager: React.FC = () => {
         console.log('parsePathFromUrl: 个人文件路径，结果:', result);
         return result;
       }
-      // 公共文件路径: 直接使用路径（不再有/@pages/前缀）
-      // 如果是根路径或其他路径，直接使用
-      const result = decodedPathname === '/' ? '/' : decodedPathname;
+      // 公共文件路径: /files/xxx -> /xxx（去掉 /files 前缀，对齐旧版 FileManager）
+      let result = decodedPathname;
+      if (decodedPathname === '/files' || decodedPathname === '/files/') {
+        result = '/';
+      } else if (decodedPathname.startsWith('/files/')) {
+        result = decodedPathname.substring(6); // 去掉 "/files"，保留开头斜杠
+      }
       console.log('parsePathFromUrl: 公共文件路径，结果:', result);
       return result;
     } catch (error) {
