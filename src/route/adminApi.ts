@@ -338,6 +338,8 @@ export function adminApiRoutes(app: Hono<any>) {
             drive_logs: '',
             cache_time: body.cache_expiration ?? 30,
             proxy_mode: body.web_proxy ? 1 : 0,
+            order: body.order,
+            proxy_data: body.webdav_policy,
         });
 
         if (!result.flag) return errorResp(c, result.text || '创建失败', 500);
@@ -367,6 +369,7 @@ export function adminApiRoutes(app: Hono<any>) {
         if (body.disabled !== undefined) updateData.is_enabled = !body.disabled;
         if (body.cache_expiration !== undefined) updateData.cache_time = body.cache_expiration;
         if (body.web_proxy !== undefined) updateData.proxy_mode = body.web_proxy ? 1 : 0;
+        if (body.webdav_policy !== undefined) updateData.proxy_data = body.webdav_policy;
         if (body.order !== undefined) updateData.order = body.order;
         if (body.remark !== undefined) updateData.remark = body.remark;
 
