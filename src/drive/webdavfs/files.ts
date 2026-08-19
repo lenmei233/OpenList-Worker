@@ -248,7 +248,7 @@ export class HostDriver extends BasicDriver {
 				return { flag: false, text: "Invalid parameters" };
 			}
 
-			const parentPath = this.getFullPath(file.path);
+			const parentPath = this.getFullPath(file.path).replace(/\/$/, "");
 			const newPath = parentPath + "/" + name.replace(/\/$/, "");
 			const url = this.clouds.getFullUrl(newPath);
 

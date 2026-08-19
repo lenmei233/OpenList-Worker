@@ -158,7 +158,7 @@ const FileManager: React.FC = () => {
   const loadEncryptGroups = useCallback(async () => {
     try {
       const res = await api.post('/api/admin/setting/list', { group: 'crypt' });
-      if (res?.code === 200 && res?.data) dispatch({ type: 'UPDATE', payload: { encryptGroups: res.data } });
+      if (res) dispatch({ type: 'UPDATE', payload: { encryptGroups: res.data || res } });
     } catch { /* 忽略 */ }
   }, []);
 
@@ -166,7 +166,7 @@ const FileManager: React.FC = () => {
   const loadMatesOptions = useCallback(async () => {
     try {
       const res = await api.post('/api/admin/meta/list', {});
-      if (res?.code === 200 && res?.data) dispatch({ type: 'UPDATE', payload: { matesOptions: res.data } });
+      if (res) dispatch({ type: 'UPDATE', payload: { matesOptions: res.data || res } });
     } catch { /* 忽略 */ }
   }, []);
 
@@ -323,10 +323,29 @@ const FileManager: React.FC = () => {
   const handleDownload = async (record: FileItem) => {
     try {
       const res = await api.post('/api/fs/get', { path: getFilePath(record), password: '' });
-      if (res?.code === 200 && res?.data?.raw_url) {
-        window.open(res.data.raw_url, '_blank');
-      } else {
+      const data = res || {};
+      const rawUrl = data.raw_url || data.url || '';
+      const headers = data.download_header || data.header || {};
+      if (!rawUrl) {
         message.info(t('files.downloadLink') + ': ' + JSON.stringify(res?.data));
+        return;
+      }
+      const hasHeaders = headers && Object.keys(headers).length > 0;
+      if (hasHeaders) {
+        // 经后端代理下载（上游如 WebDAV 无 CORS，浏览器无法直接 fetch）
+        const resp = await api.post('/api/fs/download', { path: getFilePath(record), password: '' }, { responseType: 'blob' });
+        const blob = resp instanceof Blob ? resp : new Blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = record.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+        message.success(t('common.success'));
+      } else {
+        window.open(rawUrl, '_blank');
       }
     } catch {
       message.error(t('common.failed'));
@@ -340,9 +359,8 @@ const FileManager: React.FC = () => {
       okType: 'danger',
       onOk: async () => {
         try {
-          const res = await api.post('/api/fs/remove', { dir: currentPath, names: [record.fileName] });
-          if (res?.code === 200) { message.success(t('common.success')); loadFiles(); }
-          else message.error(res?.message || t('common.failed'));
+          await api.post('/api/fs/remove', { dir: currentPath, names: [record.fileName] });
+          message.success(t('common.success')); loadFiles();
         } catch { message.error(t('common.failed')); }
       },
     });
@@ -353,11 +371,9 @@ const FileManager: React.FC = () => {
     if (!newFolderName.trim()) return;
     try {
       const newPath = currentPath === '/' ? `/${newFolderName}` : `${currentPath}/${newFolderName}`;
-      const res = await api.post('/api/fs/mkdir', { path: newPath });
-      if (res?.code === 200) {
-        message.success(t('common.success'));
-        dispatch({ type: 'UPDATE', payload: {newFolderOpen: false, newFolderName: ''} }); loadFiles();
-      } else message.error(res?.message || t('common.failed'));
+      await api.post('/api/fs/mkdir', { path: newPath });
+      message.success(t('common.success'));
+      dispatch({ type: 'UPDATE', payload: {newFolderOpen: false, newFolderName: ''} }); loadFiles();
     } catch { message.error(t('common.failed')); }
   };
 
@@ -365,11 +381,9 @@ const FileManager: React.FC = () => {
   const handleRename = async () => {
     if (!renameTarget || !renameName.trim()) return;
     try {
-      const res = await api.post('/api/fs/rename', { path: getFilePath(renameTarget), name: renameName });
-      if (res?.code === 200) {
-        message.success(t('common.success'));
-        dispatch({ type: 'UPDATE', payload: {renameOpen: false, renameTarget: null} }); loadFiles();
-      } else message.error(res?.message || t('common.failed'));
+      await api.post('/api/fs/rename', { path: getFilePath(renameTarget), name: renameName });
+      message.success(t('common.success'));
+      dispatch({ type: 'UPDATE', payload: {renameOpen: false, renameTarget: null} }); loadFiles();
     } catch { message.error(t('common.failed')); }
   };
 
@@ -377,11 +391,9 @@ const FileManager: React.FC = () => {
   const handleMove = async () => {
     if (!moveTarget || !moveDest.trim()) return;
     try {
-      const res = await api.post('/api/fs/move', { src_dir: currentPath, dst_dir: moveDest, names: [moveTarget.fileName] });
-      if (res?.code === 200) {
-        message.success(t('common.success'));
-        dispatch({ type: 'UPDATE', payload: {moveOpen: false, moveTarget: null, moveDest: ''} }); loadFiles();
-      } else message.error(res?.message || t('common.failed'));
+      await api.post('/api/fs/move', { src_dir: currentPath, dst_dir: moveDest, names: [moveTarget.fileName] });
+      message.success(t('common.success'));
+      dispatch({ type: 'UPDATE', payload: {moveOpen: false, moveTarget: null, moveDest: ''} }); loadFiles();
     } catch { message.error(t('common.failed')); }
   };
 
@@ -389,11 +401,9 @@ const FileManager: React.FC = () => {
   const handleCopy = async () => {
     if (!copyTarget || !copyDest.trim()) return;
     try {
-      const res = await api.post('/api/fs/copy', { src_dir: currentPath, dst_dir: copyDest, names: [copyTarget.fileName] });
-      if (res?.code === 200) {
-        message.success(t('common.success'));
-        dispatch({ type: 'UPDATE', payload: {copyOpen: false, copyTarget: null, copyDest: ''} }); loadFiles();
-      } else message.error(res?.message || t('common.failed'));
+      await api.post('/api/fs/copy', { src_dir: currentPath, dst_dir: copyDest, names: [copyTarget.fileName] });
+      message.success(t('common.success'));
+      dispatch({ type: 'UPDATE', payload: {copyOpen: false, copyTarget: null, copyDest: ''} }); loadFiles();
     } catch { message.error(t('common.failed')); }
   };
 
@@ -436,8 +446,8 @@ const FileManager: React.FC = () => {
         password: sharePass,
         expire: shareExpire > 0 ? shareExpire * 86400 : 0,
       });
-      if (res?.code === 200 && res?.data) {
-        const id = res.data.id || res.data.share_uuid || '';
+      if (res) {
+        const id = res.id || res.share_uuid || '';
         dispatch({ type: 'UPDATE', payload: { shareLink: id ? `${window.location.origin}/s/${id}` : `${window.location.origin}/s/` } });
       } else {
         message.error(res?.message || t('common.failed'));
@@ -452,16 +462,14 @@ const FileManager: React.FC = () => {
     dispatch({ type: 'UPDATE', payload: { encryptLoading: true } });
     try {
       const filePath = getFilePath(encryptTarget);
-      const res = await api.post('/api/admin/meta/create', {
+      await api.post('/api/admin/meta/create', {
         path: filePath,
         password: encryptGroup,
         p_sub: true,
         write: false,
       });
-      if (res?.code === 200) {
-        message.success('加密关联成功');
-        dispatch({ type: 'UPDATE', payload: {encryptOpen: false, encryptTarget: null, encryptGroup: ''} });
-      } else message.error(res?.message || t('common.failed'));
+      message.success('加密关联成功');
+      dispatch({ type: 'UPDATE', payload: {encryptOpen: false, encryptTarget: null, encryptGroup: ''} });
     } catch { message.error(t('common.failed')); }
     finally { dispatch({ type: 'UPDATE', payload: { encryptLoading: false } }); }
   };
@@ -473,18 +481,14 @@ const FileManager: React.FC = () => {
     try {
       const filePath = getFilePath(decryptTarget);
       // 调用文件其他操作API（解密）
-      const res = await api.post('/api/fs/other', {
+      await api.post('/api/fs/other', {
         path: filePath,
         method: 'decrypt',
         args: { password: decryptPass },
       });
-      if (res?.code === 200) {
-        message.success('文件解密成功');
-        dispatch({ type: 'UPDATE', payload: {decryptOpen: false, decryptTarget: null, decryptPass: ''} });
-        loadFiles();
-      } else {
-        message.error(res?.message || '解密失败');
-      }
+      message.success('文件解密成功');
+      dispatch({ type: 'UPDATE', payload: {decryptOpen: false, decryptTarget: null, decryptPass: ''} });
+      loadFiles();
     } catch { message.error('解密失败'); }
     finally { dispatch({ type: 'UPDATE', payload: { decryptLoading: false } }); }
   };
@@ -495,16 +499,14 @@ const FileManager: React.FC = () => {
     dispatch({ type: 'UPDATE', payload: { folderEditLoading: true } });
     try {
       const folderPath = getFilePath(folderEditTarget);
-      const res = await api.post('/api/admin/meta/create', {
+      await api.post('/api/admin/meta/create', {
         path: folderPath,
         password: folderCryptName || undefined,
         p_sub: true,
         write: false,
       });
-      if (res?.code === 200) {
-        message.success('文件夹配置已保存');
-        dispatch({ type: 'UPDATE', payload: {folderEditOpen: false, folderEditTarget: null, folderMatesName: '', folderCryptName: ''} });
-      } else message.error(res?.message || t('common.failed'));
+      message.success('文件夹配置已保存');
+      dispatch({ type: 'UPDATE', payload: {folderEditOpen: false, folderEditTarget: null, folderMatesName: '', folderCryptName: ''} });
     } catch { message.error(t('common.failed')); }
     finally { dispatch({ type: 'UPDATE', payload: { folderEditLoading: false } }); }
   };
@@ -518,16 +520,14 @@ const FileManager: React.FC = () => {
       if (!userName) { message.error('用户未登录'); dispatch({ type: 'UPDATE', payload: { compressLoading: false } }); return; }
       const outputPath = `${currentPath === '/' ? '' : currentPath}/${compressName}.${compressFormat}`;
       // 压缩使用 /api/fs/other (method=compress)，与 Go 后端保持一致
-      const res = await api.post('/api/fs/other', {
+      await api.post('/api/fs/other', {
         method: 'compress',
         src_path: getFilePath(compressTarget),
         dst_path: outputPath,
         args: { format: compressFormat },
       });
-      if (res?.code === 200) {
-        message.success(t('common.success'));
-        dispatch({ type: 'UPDATE', payload: {compressOpen: false, compressTarget: null, compressName: ''} }); loadFiles();
-      } else message.error(res?.message || t('common.failed'));
+      message.success(t('common.success'));
+      dispatch({ type: 'UPDATE', payload: {compressOpen: false, compressTarget: null, compressName: ''} }); loadFiles();
     } catch { message.error(t('common.failed')); }
     finally { dispatch({ type: 'UPDATE', payload: { compressLoading: false } }); }
   };
@@ -536,15 +536,14 @@ const FileManager: React.FC = () => {
   const handleUpload = async (file: File) => {
     try {
       const uploadPath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
-      const res = await api.put('/api/fs/put', file, {
+      await api.put('/api/fs/put', file, {
         headers: {
           'File-Path': encodeURIComponent(uploadPath),
           'Content-Type': file.type || 'application/octet-stream',
           'Content-Length': String(file.size),
         },
       });
-      if (res?.code === 200) { message.success(t('common.success')); loadFiles(); }
-      else message.error(res?.message || t('common.failed'));
+      message.success(t('common.success')); loadFiles();
     } catch { message.error(t('common.failed')); }
     return false;
   };

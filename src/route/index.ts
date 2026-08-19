@@ -54,6 +54,8 @@ const SOFT_AUTH_ROUTE_PREFIXES: string[] = [
     '/@media/categories',
     '/api/fs/list',
     '/api/fs/get',
+    '/api/fs/download',
+    '/api/fs/raw',
     '/api/fs/dirs',
     '/api/fs/other',
     '/api/fs/search',

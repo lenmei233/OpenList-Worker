@@ -88,14 +88,43 @@ const FilePreview: React.FC = () => {
   // 获取下载链接
   const fetchDownloadUrl = async () => {
     try {
-      // 使用新版 /api/fs/link
-      const res = await api.post('/api/fs/link', { path: filePath });
-      if (res?.url) {
-        setDownloadUrl(res.url);
-      } else if (res?.data?.[0]?.direct) {
-        setDownloadUrl(res.data[0].direct);
+      // 使用新版 /api/fs/get
+      const res = await api.post('/api/fs/get', { path: filePath, password: '' });
+      const data = res || {};
+      const headers = data.download_header || data.header || {};
+      const hasHeaders = headers && Object.keys(headers).length > 0;
+      if (hasHeaders) {
+        // 需鉴权的上游（如 WebDAV）：预览走同源代理，避免浏览器提示授权
+        setDownloadUrl(`/api/fs/raw?path=${encodeURIComponent(filePath)}`);
+      } else {
+        setDownloadUrl(data.raw_url || data.url || '');
       }
     } catch { /* 忽略，预览时不强制要求 */ }
+  };
+
+  // 下载文件（需鉴权的 WebDAV 走后端代理，避免 CORS）
+  const handleDownload = async () => {
+    try {
+      const res = await api.post('/api/fs/get', { path: filePath, password: '' });
+      const data = res || {};
+      const headers = data.download_header || data.header || {};
+      const hasHeaders = headers && Object.keys(headers).length > 0;
+      if (hasHeaders) {
+        const blob = await api.post('/api/fs/download', { path: filePath, password: '' }, { responseType: 'blob' });
+        const url = window.URL.createObjectURL(blob instanceof Blob ? blob : new Blob());
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        window.open(data.raw_url || data.url, '_blank');
+      }
+    } catch {
+      message.error('下载失败');
+    }
   };
 
   useEffect(() => {
@@ -300,7 +329,7 @@ const FilePreview: React.FC = () => {
                     <Button
                       type="primary"
                       icon={<DownloadOutlined />}
-                      onClick={() => window.open(downloadUrl, '_blank')}
+                      onClick={handleDownload}
                     >
                       下载
                     </Button>

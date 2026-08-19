@@ -83,6 +83,54 @@ function getFileType(name: string): number {
 // ============================================================
 // 路由注册
 // ============================================================
+
+/** Worker 代理上游文件（适配需鉴权头且无 CORS 的上游如 WebDAV）。
+ *  有鉴权头 → fetch 流式转发；无鉴权头 → 302 跳转直链。 */
+async function proxyDriveFile(c: Context, path: string, password: string, disposition: 'inline' | 'attachment'): Promise<Response> {
+    if (path.startsWith('/@s')) {
+        return await handleShareGet(c, path.replace('/@s', ''), password);
+    }
+
+    const mountManage = new MountManage(c);
+    const driveLoad = await mountManage.loader(path, false, false);
+    if (!driveLoad || !driveLoad[0]) return errorResp(c, '文件不存在', 404);
+
+    await driveLoad[0].loadSelf();
+    const relativePath = path.replace(driveLoad[0].router, '') || '/';
+
+    let directUrl = '';
+    let downloadHeaders: Record<string, string> = {};
+    try {
+        const links = await driveLoad[0].downFile({ path: relativePath });
+        if (links && links.length > 0) {
+            directUrl = links[0].direct || links[0].url || '';
+            downloadHeaders = links[0].header || {};
+        }
+    } catch (error: any) {
+        return errorResp(c, '获取下载链接失败: ' + (error?.message || error), 500);
+    }
+    if (!directUrl) return errorResp(c, '获取下载链接失败', 500);
+
+    // 有鉴权头：Worker 代理流式转发
+    if (downloadHeaders && Object.keys(downloadHeaders).length > 0) {
+        const upstream = await fetch(directUrl, { headers: downloadHeaders, redirect: 'follow' });
+        if (!upstream.ok) return errorResp(c, `上游下载失败: ${upstream.status}`, 502);
+
+        const fileName = path.split('/').pop() || 'download';
+        return new Response(upstream.body, {
+            status: 200,
+            headers: {
+                'Content-Type': upstream.headers.get('content-type') || 'application/octet-stream',
+                'Content-Length': upstream.headers.get('content-length') || '',
+                'Content-Disposition': `${disposition}; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+            },
+        });
+    }
+
+    // 无鉴权头：302 跳转直链
+    return c.redirect(directUrl, 302);
+}
+
 export function fsReadRoutes(app: Hono<any>) {
 
     // ------------------------------------------------------------------
@@ -199,10 +247,12 @@ export function fsReadRoutes(app: Hono<any>) {
 
         // 获取下载链接
         let rawUrl = '';
+        let downloadHeaders: Record<string, string> = {};
         try {
             const links = await driveLoad[0].downFile({ path: relativePath });
             if (links && links.length > 0) {
                 rawUrl = links[0].direct || links[0].url || '';
+                downloadHeaders = links[0].header || {};
             }
         } catch { /* 忽略 */ }
 
@@ -217,11 +267,34 @@ export function fsReadRoutes(app: Hono<any>) {
         return successResp(c, {
             ...objResp,
             raw_url: rawUrl,
+            download_header: downloadHeaders,
             readme: '',
             header: '',
             provider: 'unknown',
             related: [],
         });
+    });
+
+    // ------------------------------------------------------------------
+    // POST /api/fs/download — 下载文件（Worker 代理，适配需鉴权头且无 CORS 的上游如 WebDAV）
+    // Body: { path, password? }
+    // 有鉴权头 → Worker fetch 流式转发；无鉴权头 → 302 跳转直链
+    // ------------------------------------------------------------------
+    app.post('/api/fs/download', async (c: Context): Promise<any> => {
+        const body = await parseBody(c);
+        const path: string = body.path || '/';
+        const password: string = body.password || '';
+        return await proxyDriveFile(c, path, password, 'attachment');
+    });
+
+    // ------------------------------------------------------------------
+    // GET /api/fs/raw — 预览代理（内联流式，供 img/video/audio 等跨域需鉴权文件预览）
+    // Query: path, password?
+    // ------------------------------------------------------------------
+    app.get('/api/fs/raw', async (c: Context): Promise<any> => {
+        const path = c.req.query('path') || '/';
+        const password = c.req.query('password') || '';
+        return await proxyDriveFile(c, path, password, 'inline');
     });
 
     // ------------------------------------------------------------------

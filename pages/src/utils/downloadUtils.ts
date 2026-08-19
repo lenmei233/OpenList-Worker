@@ -93,21 +93,21 @@ export const downloadFile = async ({
     // 构建下载API URL，确保路径正确分隔，避免双斜杠
     let downloadApiUrl: string;
     if (cleanBackendPath === '' || cleanBackendPath === '/') {
-      // 根路径情况，使用新版 /api/fs/link
-      downloadApiUrl = `/api/fs/link`;
+      // 根路径情况，使用新版 /api/fs/get
+      downloadApiUrl = `/api/fs/get`;
     } else {
-      // 子路径情况，使用新版 /api/fs/link
-      downloadApiUrl = `/api/fs/link`;
+      // 子路径情况，使用新版 /api/fs/get
+      downloadApiUrl = `/api/fs/get`;
     }
     
-    // 使用 POST /api/fs/link 获取下载链接
+    // 使用 POST /api/fs/get 获取下载链接
     const fullFilePath = cleanBackendPath === '' || cleanBackendPath === '/'
       ? `/${fileInfo.name}`
       : `${cleanBackendPath}/${fileInfo.name}`;
     
     console.log('下载文件路径:', fullFilePath);
     
-    // 使用 POST /api/fs/link 获取下载链接
+    // 使用 POST /api/fs/get 获取下载链接
     const response = await fetch(downloadApiUrl, {
       method: 'POST',
       headers: {
@@ -124,28 +124,34 @@ export const downloadFile = async ({
       // JSON响应，按原来的方式处理
       const responseData = await response.json();
       
-      if (responseData && responseData.flag && responseData.data && responseData.data.length > 0) {
-        const downloadData = responseData.data[0];
-        const directUrl = downloadData.direct;
-        const headers = downloadData.header || {};
+      // 兼容新旧格式：新 { code, data:{raw_url,download_header} } / 旧 { flag, data:[{direct,header}] }
+      const newData = responseData?.data;
+      const legacyList = responseData?.flag ? responseData?.data : null;
+      const downloadData = (newData && newData.raw_url) ? newData : (legacyList?.[0] || null);
+      const directUrl = downloadData?.raw_url || downloadData?.direct || downloadData?.url || '';
+      const headers = downloadData?.download_header || downloadData?.header || {};
+      
+      if (directUrl) {
+        // 检查header字段是否不为空
+        const hasHeaders = headers && Object.keys(headers).length > 0;
         
-        if (directUrl) {
-          // 检查header字段是否不为空
-          const hasHeaders = headers && Object.keys(headers).length > 0;
-          
-          if (hasHeaders) {
-            // 如果有header，使用fetch下载并保存到本地，显示进度条
-            const downloadId = `download_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        if (hasHeaders) {
+          // 有鉴权头：经后端 /api/fs/download 代理下载（上游如 WebDAV 无 CORS，浏览器无法直接 fetch）
+          const downloadId = `download_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             
             try {
-              console.log('使用fetch下载，携带headers:', headers);
+              console.log('使用后端代理下载:', fullFilePath);
               
               // 开始下载，显示进度条，获取AbortController
               const abortController = downloadManager.startDownload(downloadId, fileInfo.name);
               
-              const fetchResponse = await fetch(directUrl, {
-                method: 'GET',
-                headers: headers,
+              const fetchResponse = await fetch(`/api/fs/download`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+                },
+                body: JSON.stringify({ path: fullFilePath }),
                 signal: abortController.signal
               });
               
@@ -234,9 +240,6 @@ export const downloadFile = async ({
         } else {
           onError?.('获取下载链接失败');
         }
-      } else {
-        onError?.('获取下载链接失败');
-      }
     } else {
       // 流式响应，直接处理
       if (!response.ok) {
