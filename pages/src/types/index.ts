@@ -22,6 +22,16 @@ export interface MountConfig {
   proxy_data?: string;
   drive_logs?: string;
   drive_tips?: string;
+  // 后端 Go 契约字段（/api/admin/storage/* 返回与接收）
+  driver?: string;
+  addition?: string;
+  disabled?: boolean;
+  cache_expiration?: number;
+  web_proxy?: boolean;
+  webdav_policy?: string;
+  remark?: string;
+  order?: number;
+  status?: 'work' | 'disabled';
 }
 
 // 用户信息（用于前端显示）

@@ -245,24 +245,25 @@ const MountManagement: React.FC = () => {
   const handleEdit = async (mount: MountConfig) => {
     setEditingMount(mount);
     
-    // 解析现有配置
+    // 解析现有配置（兼容后端 Go 契约的 addition 字段）
     let driveConf = {};
+    const rawConf = mount.addition !== undefined ? mount.addition : mount.drive_conf;
     try {
-      driveConf = mount.drive_conf ? JSON.parse(mount.drive_conf) : {};
+      driveConf = typeof rawConf === 'string' ? (rawConf ? JSON.parse(rawConf) : {}) : (rawConf || {});
     } catch (err) {
       console.error('解析配置失败:', err);
     }
 
-    // 先设置表单数据
+    // 先设置表单数据（字段名兼容后端 Go 契约：driver/order/remark/cache_expiration/web_proxy/webdav_policy）
     const editFormData = {
       mount_path: mount.mount_path,
-      mount_type: mount.mount_type,
-      is_enabled: mount.is_enabled === 1,
-      cache_time: mount.cache_time || 3600,
-      index_list: mount.index_list || 1,
-      proxy_mode: mount.proxy_mode || 0,
-      proxy_data: mount.proxy_data || '',
-      drive_tips: mount.drive_tips || '',
+      mount_type: mount.mount_type || mount.driver || '',
+      is_enabled: mount.is_enabled !== undefined ? mount.is_enabled === 1 : mount.status === 'work',
+      cache_time: mount.cache_expiration !== undefined ? mount.cache_expiration : (mount.cache_time || 3600),
+      index_list: mount.order !== undefined ? mount.order : (mount.index_list || 1),
+      proxy_mode: mount.web_proxy !== undefined ? (mount.web_proxy ? 1 : 0) : (mount.proxy_mode || 0),
+      proxy_data: mount.web_proxy ? (mount.webdav_policy || '') : (mount.proxy_data || ''),
+      drive_tips: mount.remark !== undefined ? mount.remark : (mount.drive_tips || ''),
       ...driveConf
     };
     setFormData(editFormData);
@@ -323,16 +324,17 @@ const MountManagement: React.FC = () => {
       }
     });
 
+    // 对齐后端 Go 契约：driver/addition/disabled/cache_expiration/web_proxy/remark/order/webdav_policy
     const mountConfig = {
       mount_path: formData.mount_path,
-      mount_type: selectedDriver,
-      is_enabled: formData.is_enabled ? 1 : 0,
-      cache_time: formData.cache_time || 3600,
-      index_list: formData.index_list || 1,
-      proxy_mode: formData.proxy_mode || 0,
-      proxy_data: formData.proxy_data || '',
-      drive_tips: formData.drive_tips || '',
-      drive_conf: JSON.stringify(driveConf)
+      driver: selectedDriver,
+      disabled: !formData.is_enabled,
+      cache_expiration: formData.cache_time || 3600,
+      web_proxy: formData.proxy_mode === 1,
+      remark: formData.drive_tips || '',
+      addition: JSON.stringify(driveConf),
+      order: formData.index_list || 0,
+      webdav_policy: formData.proxy_data || '',
     };
 
     try {
