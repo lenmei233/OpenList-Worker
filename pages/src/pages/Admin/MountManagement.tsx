@@ -182,44 +182,44 @@ const MountManagement: React.FC = () => {
 
   const columns = [
     {
-      id: 'index_list',
+      id: 'order',
       label: '序号',
       minWidth: 60,
       format: (value: number) => value !== undefined && value !== null ? value : 1,
     },
     { id: 'mount_path', label: '挂载路径', minWidth: 150 },
-    { id: 'mount_type', label: '驱动类型', minWidth: 120 },
+    { id: 'driver', label: '驱动类型', minWidth: 120 },
     {
-      id: 'proxy_mode',
+      id: 'web_proxy',
       label: '代理模式',
       minWidth: 80,
-      format: (value: number) => value === 1 ? '代理' : '直连',
+      format: (value: boolean) => value ? '代理' : '直连',
     },
     {
-      id: 'is_enabled',
+      id: 'status',
       label: '状态',
       minWidth: 80,
-      format: (value: number) => (
-        <Tag color={value === 1 ? 'success' : 'default'}>
-          {value === 1 ? '启用' : '禁用'}
+      format: (value: string) => (
+        <Tag color={value === 'work' ? 'success' : 'default'}>
+          {value === 'work' ? '启用' : '禁用'}
         </Tag>
       ),
     },
     {
-      id: 'cache_time',
+      id: 'cache_expiration',
       label: '缓存时间(秒)',
       minWidth: 100,
       format: (value: number) => (value === 0 ? '无缓存' : `${value}秒`),
     },
     {
-      id: 'proxy_data',
+      id: 'webdav_policy',
       label: '代理地址',
       minWidth: 150,
       format: (value: string) => value || '-',
     },
     {
-      id: 'drive_logs',
-      label: '日志',
+      id: 'remark',
+      label: '备注',
       minWidth: 150,
       format: (value: string) => value || '-',
     },
