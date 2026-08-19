@@ -105,7 +105,7 @@ export class HostDriver extends BasicDriver {
 				fileList: fileList,
 			};
 		} catch (error: any) {
-			console.error("[WebDAV] listFile error:", error);
+			console.error("[WebDAV] listFile error:", error?.message || error);
 			return { fileList: [], pageSize: 0 };
 		}
 	}

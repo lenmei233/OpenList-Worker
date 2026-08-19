@@ -336,8 +336,16 @@ if (!data.refresh_token || !data.access_token) {
 
 		// 编码路径
 		const encodedPath = this.encodePath(path);
-		// ponytail: 空字符串视作根路径，避免生成 root:: 非法 URL
-		const isRoot = path === "/" || path === "\\" || path === "";
+		// ponytail: 空字符串返回 drive base（调用方会拼 /items/{uuid}），避免 root:: 非法 URL
+		if (path === "") {
+			if (this.config.is_sharepoint) {
+				return `${host.api}/v1.0/sites/${this.config.site_id}/drive`;
+			} else {
+				return `${host.api}/v1.0/me/drive`;
+			}
+		}
+
+		const isRoot = path === "/" || path === "\\";
 
 		if (this.config.is_sharepoint) {
 			if (isRoot) {

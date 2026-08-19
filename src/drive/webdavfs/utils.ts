@@ -244,33 +244,34 @@ export class HostClouds extends BasicClouds {
 	parsePropfindResponse(xml: string): any[] {
 		// 简化的XML解析，实际应使用专业的XML解析库
 		const files: any[] = [];
-		
-		// 使用正则表达式提取基本信息
-		const responseRegex = /<d:response>([\s\S]*?)<\/d:response>/g;
+		// ponytail: 兼容 namespace 前缀大小写（D: 或 d:）
+		const responseRegex = /<[Dd]:response>([\s\S]*?)<\/[Dd]:response>/g;
 		let match;
 		
 		while ((match = responseRegex.exec(xml)) !== null) {
 			const responseContent = match[1];
 			
 			// 提取href
-			const hrefMatch = /<d:href>(.*?)<\/d:href>/.exec(responseContent);
+			const hrefMatch = /<[Dd]:href>(.*?)<\/[Dd]:href>/.exec(responseContent);
 			const href = hrefMatch ? hrefMatch[1] : "";
 			
 			// 提取displayname
-			const nameMatch = /<d:displayname>(.*?)<\/d:displayname>/.exec(responseContent);
+			const nameMatch = /<[Dd]:displayname>(.*?)<\/[Dd]:displayname>/.exec(responseContent);
 			const name = nameMatch ? nameMatch[1] : "";
 			
 			// 提取contentlength
-			const sizeMatch = /<d:getcontentlength>(.*?)<\/d:getcontentlength>/.exec(responseContent);
+			const sizeMatch = /<[Dd]:getcontentlength>(.*?)<\/[Dd]:getcontentlength>/.exec(responseContent);
 			const size = sizeMatch ? parseInt(sizeMatch[1]) : 0;
 			
 			// 提取lastmodified
-			const modifiedMatch = /<d:getlastmodified>(.*?)<\/d:getlastmodified>/.exec(responseContent);
+			const modifiedMatch = /<[Dd]:getlastmodified>(.*?)<\/[Dd]:getlastmodified>/.exec(responseContent);
 			const modified = modifiedMatch ? modifiedMatch[1] : "";
 			
 			// 检查是否为目录
 			const isDir = responseContent.includes("<d:collection/>") || 
-			              responseContent.includes("<d:resourcetype><d:collection/></d:resourcetype>");
+			              responseContent.includes("<D:collection/>") || 
+			              responseContent.includes("<d:resourcetype><d:collection/></d:resourcetype>") ||
+			              responseContent.includes("<D:resourcetype><D:collection/></D:resourcetype>");
 			
 			if (name) {
 				files.push({

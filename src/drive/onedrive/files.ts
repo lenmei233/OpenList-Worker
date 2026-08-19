@@ -119,7 +119,7 @@ export class HostDriver extends BasicDriver {
 				fileList: fileList,
 			};
 		} catch (error: any) {
-			console.error("listFile error:", error);
+			console.error("listFile error:", error?.message || error);
 			return { fileList: [], pageSize: 0 };
 		}
 	}
