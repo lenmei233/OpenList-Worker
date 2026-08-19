@@ -336,15 +336,17 @@ if (!data.refresh_token || !data.access_token) {
 
 		// 编码路径
 		const encodedPath = this.encodePath(path);
+		// ponytail: 空字符串视作根路径，避免生成 root:: 非法 URL
+		const isRoot = path === "/" || path === "\\" || path === "";
 
 		if (this.config.is_sharepoint) {
-			if (path === "/" || path === "\\") {
+			if (isRoot) {
 				return `${host.api}/v1.0/sites/${this.config.site_id}/drive/root`;
 			} else {
 				return `${host.api}/v1.0/sites/${this.config.site_id}/drive/root:${encodedPath}:`;
 			}
 		} else {
-			if (path === "/" || path === "\\") {
+			if (isRoot) {
 				return `${host.api}/v1.0/me/drive/root`;
 			} else {
 				return `${host.api}/v1.0/me/drive/root:${encodedPath}:`;
