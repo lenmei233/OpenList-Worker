@@ -164,6 +164,12 @@
   // "d1_databases": [
   //   { "binding": "DB", "database_name": "openlist", "database_id": "" }
   // ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_id": "4df85301-60a8-4f17-9fd7-546eeec12907"
+    }
+  ],
   //
   // ▶ 方案 C：Durable Objects（内置 SQLite，强一致；DB_FORMAT 建议改为 "sql"）
   //   注意：DO 需要 migrations，且删除成本高，适合单租户部署。
